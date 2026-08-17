@@ -1,0 +1,49 @@
+# --- Secrets -------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Corpus + build artefacts --------------------------------------------------
+# Everything under data/ is ingested at build time and never committed:
+# PDFs are content owned by the Esports Foundation, not ours to redistribute.
+data/
+
+# Belt-and-braces: no PDF is committable from anywhere in this repo.
+*.pdf
+
+# Derived stores / caches, wherever a stage happens to drop them.
+chroma/
+chroma_db/
+*.sqlite3
+*.pkl
+*.pickle
+
+# --- Virtual environments ------------------------------------------------------
+.venv/
+venv/
+env/
+.uv/
+
+# --- Python caches -------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
+
+# --- Front-end (S6b) -----------------------------------------------------------
+node_modules/
+frontend/dist/
+.vite/
+*.local
+
+# --- Editor / OS ---------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/

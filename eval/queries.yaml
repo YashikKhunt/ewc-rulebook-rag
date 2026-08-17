@@ -1,0 +1,692 @@
+# eval/queries.yaml — the S4 query set.
+#
+# Written CONFLICT-FIRST, per CLAUDE.md build order step 4: conflict cases (a topic
+# both Global and a title book address) are the ones that expose flat retrieval.
+# All conflict/agreement pairs below are REAL pairs found by the verifier at
+# iteration 006 — nothing is synthesised.
+#
+# Semantics (enforced by eval/run.py):
+#   - Every assertion defaults to status: must_pass. A must_pass assertion must hold
+#     in EVERY generation run (generation is unseeded — A2 — so a single flaky pass
+#     is not a pass).
+#   - status: known_fail marks an assertion that MEASURES a defect the human has
+#     deliberately deferred to S5 (B4/B5/B6/B7). It is tracked and reported
+#     ("CONFIRMED" when it fails in at least one run, "NOW PASSING" when it
+#     unexpectedly holds in all runs) but never blocks the exit code. Each carries a
+#     `finding` pointer into logs/.
+#   - generate: true marks the subset that costs generation tokens. Retrieval
+#     assertions run on every case and are ~free (query embeddings only; router
+#     calls only where route: auto).
+#   - game: <slug> forces the scope (no router call); game: null with route: auto
+#     runs the router; game: null without route: auto is forced general scope.
+#
+# Auto-checks applied to EVERY generated answer (see config below):
+#   citations_supported  — every cited locator matches a citation= line that was in
+#                          the context window (reuses graph.py's own machinery).
+#   hedges_attributable  — "typically/usually/generally/commonly" allowed ONLY when
+#                          the word occurs in a retrieved excerpt's text (006 ruling
+#                          3: the corpus itself contains 44/12/8/2 such chunks; a
+#                          flat regex would fail faithful answers).
+#   verbatim_max_run     — longest unbroken verbatim word-run vs any source chunk
+#                          must be <= 25 words. Threshold justification: CLAUDE.md
+#                          #6 permits only short load-bearing quotes; the longest
+#                          legally load-bearing phrase in the fixture set ("even if
+#                          the respective game title rulebook allows bigger
+#                          changes...") is ~15 words, so 25 gives >1.5x headroom,
+#                          while the violations measured at 007 (32, 35 and 115
+#                          words) all sit above it. status known_fail -> B7.
+
+config:
+  runs: 3                     # default generation repetitions; override with --runs
+  # 008 verifier ruling 3: N=2 lets a 30%-flaky behaviour slip both runs with
+  # p≈0.49; N=3 drops that to ≈0.34 for ~$0.012 more per full run. Adopted at S5.
+  verbatim_threshold: 25
+  auto_checks:
+    citations_supported: {status: must_pass}
+    hedges_attributable: {status: must_pass}
+    verbatim_max_run: {status: known_fail, finding: "B7 REDUCED BUT NOT CLOSED at S5. Was 115w max over 5 of 13 generative cases (logs/007); now <=28w on ONE case (normal-cs2-lateness-ladder, 28/28/23 at --runs 3). NOT promoted to must_pass: the remaining runs sit just over the 25w tripwire and come from the one-clause sibling disclosure, which must carry cs2 2.8.3's exact +100%/match-3 figures. See the S5 report."}
+    # DELIBERATELY LEFT known_fail. The S5 brief said to promote this "if and only
+    # if B7 is genuinely closed". It is not. What DID change is structural and
+    # measurable: both drivers 007 identified are gone (the COMPLETENESS clause,
+    # and the sibling correction's "keep everything you already had"), and
+    # graph.verbatim_violations() now fails a draft at 20 words — tighter than this
+    # 25-word gate — and regenerates it once with the copied passage quoted back.
+
+# ---------------------------------------------------------------------------------
+# Offline regression pins — free, no network.
+#
+# UPDATED AT S5, deliberately, and here is exactly why. S5 added the amendment
+# layer (articles.py -> data/amendments.json -> ONE amendment chunk for the
+# published update to Global Article 3.2.3). Indexing it re-embedded the corpus,
+# so every pin below that counts or hashes the store MOVED. The gate caught all
+# five and refused to pass — that is the gate working, not a fixture defect.
+#
+#   chunks.pkl sha256   215c1862… -> e5819299…   (one Document added)
+#   chunks.pkl bytes    1,938,007 -> 1,942,199   (+4,192, the 2,697-char notice)
+#   documents           2381      -> 2382
+#   chroma_vectors      2381      -> 2382
+#   per_book global     159/128   -> 160/128     chunks +1; DISTINCT ARTICLES
+#                                                UNCHANGED, because the amendment
+#                                                targets 3.2.3, already present.
+#
+# No pin was loosened or removed and no per-book row other than `global` moved:
+# the 24 title books are byte-identical to S4. Values re-measured 2026-08-14.
+#
+# RE-PINNED AT S6 — sha256 ONLY, and here is exactly why (log 010, B-1).
+# The full pipeline was re-run at 16:12-16:13 on 2026-08-14 (ingest -> articles ->
+# index), which re-embedded the corpus. `index.py` is destructive, so `chunks.pkl`
+# was rewritten. The gate caught it and exited 1 — the gate working, again.
+#
+# This is SERIALISATION drift, not corpus drift. Verified before re-pinning:
+#   documents      2382       unchanged
+#   bytes          1,942,199  unchanged  <- identical LENGTH, different bytes
+#   scopes         global 159 / title 2222 / amendment 1   unchanged
+#   amendment id   amendment:article:global:3.2.3:0        unchanged
+#   the other 31 regression pins                           all still PASS
+# An identical-length file with identical content and a different digest is
+# pickle non-determinism, not a changed corpus.
+#
+#   chunks.pkl sha256   e5819299… -> 49c0a952…   (re-serialised, content equal)
+#
+# NOTHING ELSE was touched. bytes/documents/chroma_vectors/per-book rows all still
+# hold their S5 values, so a real corpus change still fails this gate.
+# See A-5 in log 010: this pin cannot itself distinguish "bytes differ, content
+# identical" from real drift, which is why the identity check above was done by
+# hand. A content-fingerprint pin would be the durable fix.
+# ---------------------------------------------------------------------------------
+regression:
+  chunks_pickle:
+    sha256: "49c0a952d9421605b2836a9e5ba5f97fcbf52adf4e5eb34c643915e67af21535"
+    bytes: 1942199
+    documents: 2382
+  chroma_vectors: 2382
+  # NEW at S5 — the amendment layer itself. Contract #2 had zero coverage before
+  # this stage, offline or live. Pins the count AND what it amends, so a scrape
+  # that silently stops finding the notice, or starts pointing it at a different
+  # article, fails the gate offline and free.
+  amendment_chunks: 1
+  amendment_targets: ["global:3.2.3"]
+  # per-book chunk count AND distinct-article count (S2 A9: the >80% article gate
+  # is gameable without a distinct-article floor; this pins both dimensions).
+  per_book:
+    apex:             {chunks: 161, articles: 99}
+    chess:            {chunks: 41,  articles: 39}
+    cod-mw3:          {chunks: 73,  articles: 70}
+    crossfire:        {chunks: 60,  articles: 56}
+    cs2:              {chunks: 109, articles: 97}
+    dota2:            {chunks: 132, articles: 114}
+    ea-sports-fc:     {chunks: 37,  articles: 35}
+    fatal-fury:       {chunks: 82,  articles: 75}
+    fortnite:         {chunks: 61,  articles: 56}
+    free-fire:        {chunks: 62,  articles: 58}
+    global:           {chunks: 160, articles: 128}   # 159 PDF + 1 amendment (S5)
+    honor-of-kings:   {chunks: 170, articles: 133}
+    lol:              {chunks: 100, articles: 93}
+    mlbb:             {chunks: 287, articles: 257}
+    mlbb-women:       {chunks: 133, articles: 114}
+    pubg:             {chunks: 80,  articles: 72}
+    pubg-mobile:      {chunks: 85,  articles: 73}
+    r6-siege:         {chunks: 70,  articles: 64}
+    rocket-league:    {chunks: 37,  articles: 35}
+    street-fighter-6: {chunks: 83,  articles: 75}
+    tekken-8:         {chunks: 81,  articles: 75}
+    tft:              {chunks: 50,  articles: 46}
+    trackmania:       {chunks: 48,  articles: 45}
+    valorant:         {chunks: 105, articles: 102}
+    warzone:          {chunks: 75,  articles: 52}
+
+cases:
+  # =================================================================================
+  # CONFLICT bucket — written first. Real Global-vs-title pairs from logs/006 ruling 2.
+  # =================================================================================
+
+  - id: conflict-media-fines
+    bucket: conflict
+    question: "What happens if a Dota 2 team does not fulfill its media obligations?"
+    game: dota2
+    generate: true
+    notes: >
+      dota2 5.5 (pp.24-25) vs global 5.1.19.4.1 (p.31): identical opening sentence,
+      then Global leaves fine ranges to TA discretion while Dota 2 sets a binding
+      numeric schedule. Title must govern and the answer must SAY so (CLAUDE.md #1).
+      006 measured 2/2: content factually perfect, Global never mentioned, no
+      precedence statement — B4, deferred to S5 by human ruling.
+    retrieval:
+      must_include:
+        - {game: dota2, article: "5.5"}
+        - {game: global, article: "5.1.19.4.1"}
+    answer:
+      - {check: require, pattern: '4,?000', why: "media-day fine amount from dota2 5.5"}
+      - {check: require_citation, book: "Dota 2", article: "5.5", pages: [24, 25]}
+      # PROMOTED at S5 from known_fail: B4 is closed on this pair. resolve now
+      # computes the Global-vs-title relation from the excerpts and hands the
+      # prompt the CONFLICT as a fact, so the answer states precedence instead of
+      # re-deriving it. Measured NOW PASSING 2/2 before promotion.
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "5.1.19.4.1", pages: [31]}
+      - {check: require, pattern: '(govern|prevail|precede|take[s]? precedence)', why: "CLAUDE.md #1: the title rule governs and the answer must SAY so"}
+
+  - id: conflict-publisher-bans
+    bucket: conflict
+    question: "How are publisher bans and VAC bans handled for CS2 players at the EWC?"
+    game: cs2
+    generate: true
+    notes: >
+      cs2 4.8 (p.21) vs global 5.1.12 (p.27): CS2 honours VAC bans "but only for
+      five (5) years"; Global has no time limit plus mandatory ESIC-ban honouring.
+      A 6-year-old VAC ban resolves differently under each. 006 measured 2/2: CS2
+      alone, no precedence statement, ESIC rule dropped entirely — B4.
+    retrieval:
+      must_include:
+        - {game: cs2, article: "4.8"}
+        - {game: global, article: "5.1.12"}
+    answer:
+      - {check: require, pattern: 'five \(5\) years|five years|5 years', why: "the load-bearing CS2 4.8 limit"}
+      - {check: require_citation, book: "Counter-Strike 2", article: "4.8", pages: [21]}
+      # PROMOTED at S5 from known_fail (measured NOW PASSING 2/2): see B4 above.
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "5.1.12", pages: [27]}
+      - check: require
+        pattern: 'ESIC'
+        status: known_fail
+        finding: "B4 (logs/006): the ESIC-ban rule was dropped entirely 2/2"
+      # PROMOTED at S5 from known_fail (measured NOW PASSING 2/2).
+      - {check: require, pattern: '(govern|prevail|precede|take[s]? precedence)', why: "CLAUDE.md #1"}
+
+  - id: conflict-agreement-penalty-points
+    bucket: conflict
+    question: "How do penalty points work in Dota 2?"
+    game: dota2
+    generate: true
+    notes: >
+      AGREEMENT pair: dota2 1.4.1.1 (p.8) is verbatim-identical to global 5.1.2.1
+      (p.23). The answer must say the books agree — it must NOT invent precedence
+      in either direction (006 ruling 2: agreement fixtures test exactly this).
+    retrieval:
+      must_include:
+        - {game: dota2, article: "1.4.1.1"}
+        - {game: global, article: "5.1.2.1"}
+    answer:
+      - {check: require, pattern: 'one percent|1\s?%', why: "the shared rule's content"}
+      - {check: require_citation, book: "Dota 2", article: "1.4.1.1", pages: [8]}
+      - check: forbid
+        pattern: '(governs|prevails|takes precedence)\s+over'
+        why: "identical rules — any precedence claim here is invented"
+
+  - id: conflict-express-global-primacy
+    bucket: conflict
+    question: "If a team makes more roster changes than allowed, can it still earn Club Championship Points?"
+    game: cs2
+    generate: true
+    notes: >
+      The human's CLAUDE.md #1 amendment: global 3.2.3 (p.17) expressly asserts
+      primacy "even if the respective game title rulebook allows bigger changes" —
+      Global governs on this point and the answer must say so. LIVE FAILURE SHAPE
+      (B6, logs/007): with global 3.2.3 retrieved at RANK 1, the pipeline answers
+      "the retrieved excerpts do not state..." 2/2 — a false gap claim phrased in
+      the excerpt-framing that silence_violations() deliberately exempts, hence
+      unfalsifiable by the current post-check. The A16 guard rides on the same
+      retrieval geometry (cs2 3.2.3 is an UNRELATED article sharing the number).
+    retrieval:
+      must_include:
+        - {game: global, article: "3.2.3"}
+    answer:
+      # PROMOTED at S5 from known_fail. B6's blanket-abstention shape is now
+      # caught mechanically: graph.false_gap_violations() fails an answer that
+      # cites NOTHING while resolve reported a relation about the rank-1 excerpt,
+      # and a false claim about the evidence withholds rather than ships. The
+      # note also hands the prompt global 3.2.3's governing condition as a fact.
+      - {check: forbid, pattern: '(excerpts|excerpt) do(es)? not (state|specify|address|cover|say|indicate)', why: "the answer IS in the rank-1 excerpt"}
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "3.2.3", pages: [17]}
+      - {check: require, pattern: 'majority', why: "the rank-1 excerpt's governing condition"}
+      - check: forbid
+        pattern: '(is|are) in conflict with'
+        why: "A16 guard: any affirmative conflict claim between the two 3.2.3 articles is fabricated"
+
+  - id: conflict-express-global-primacy-rephrased
+    bucket: conflict
+    question: "What does the Team Roster Integrity rule say about roster changes and Club Championship Points?"
+    game: cs2
+    generate: true
+    notes: >
+      The REPHRASED variant of the express-primacy question, which 007 measured
+      PASSING 2/2 (full 3.2.3 rule plus the express-primacy clause) — proof B6 is
+      a phrasing-sensitivity defect, not a corpus hole. Pinned as the regression
+      gate for that behaviour.
+    retrieval:
+      must_include:
+        - {game: global, article: "3.2.3"}
+    answer:
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "3.2.3", pages: [17]}
+      - {check: require, pattern: 'majority', why: "the governing condition"}
+      # CHANGED AT S5, and the change is a TIGHTENING on substance while dropping
+      # a requirement that had become self-contradictory. The S4 form required one
+      # of two VERBATIM fragments of global 3.2.3. Closing B7 makes the pipeline
+      # paraphrase, so that assertion now demands the exact transcription that
+      # non-negotiable #6 and the B7 repair exist to prevent — measured: the
+      # answer says "even if the game title rulebook permits larger roster
+      # changes", which conveys the clause faithfully and fails the old pattern.
+      # The wording tolerance is widened; a SECOND must_pass is added requiring the
+      # answer to state Global's primacy, which the S4 form never asserted at all.
+      - check: require
+        pattern: '(even if|regardless of|notwithstanding)[^.]{0,60}game[- ]title rulebook'
+        why: "the express-primacy clause's content, quoted or paraphrased"
+      - check: require
+        pattern: '(govern|primacy|prevail|take[s]? precedence|applies even)'
+        status: known_fail
+        finding: "B10 (S5, NEW): under the DESCRIPTIVE phrasing ('what does the rule SAY') the answer conveys the primacy clause faithfully but never states in its own voice that Global governs — measured 0/3. Under the DECISION phrasing (conflict-express-global-primacy) it does, 3/3. Phrasing-sensitivity of the primacy statement, not of the content." 
+
+  - id: conflict-a16-number-collision
+    bucket: conflict
+    question: "What does Article 3.2.3 say?"
+    game: cs2
+    generate: true
+    notes: >
+      A16 guard (logs/007): cs2 3.2.3 (Global Valve Regional Standings slots) and
+      global 3.2.3 (Team Roster Integrity) are UNRELATED articles sharing a number
+      and are co-retrieved by this wording (measured: both in top 8). The answer
+      must NOT claim a conflict or invent precedence between them. Currently passes
+      — pinned as must_pass so S5's resolve (grouping on article_id, not article)
+      cannot regress it into a fabricated conflict.
+    retrieval:
+      must_include:
+        - {game: cs2, article: "3.2.3"}
+        - {game: global, article: "3.2.3"}
+    answer:
+      # A-S4-1 (008, highest-priority advisory): this case was forbid-only, so a
+      # bare abstention satisfied the whole thing and the pinned behaviour could
+      # regress to a non-answer undetected. Requiring the cs2 article to be cited
+      # makes the case assert that the collision is handled, not merely dodged.
+      # A-S4-1 (008's highest-priority advisory) is now ENCODED rather than absent:
+      # the case can no longer pass vacuously on an abstention. It does not yet
+      # HOLD — measured 0/3 — and is recorded as the defect it is rather than
+      # dropped. The answer discusses the Global 3.2.3 fully and never mentions the
+      # CS2 article sharing its number, which is retrieved at rank 2.
+      - check: require_citation
+        book: "Counter-Strike 2"
+        article: "3.2.3"
+        pages: [17]
+        status: known_fail
+        finding: "B9 (S5, NEW): asked 'What does Article 3.2.3 say?' at cs2 scope, the answer resolves the ambiguity silently — it answers for global 3.2.3 (Team Roster Integrity) and never mentions cs2 3.2.3 (Global Valve Regional Standings slots) at rank 2. resolve correctly declines to pair them (A16 is not fabricated); disambiguating the question for the reader is a separate, unbuilt behaviour."
+      # NARROWED AT S5, and this one is a fixture that BECAME WRONG. The S4 pattern
+      # forbade any '(governs|prevails|takes precedence) over'. Since the human
+      # amended CLAUDE.md #1 with the express-Global-primacy exception, the correct
+      # answer here CONTAINS exactly that: measured 3/3, "The Global Rulebook
+      # prevails over any game title rulebook on this point (EWC Global Rulebook
+      # 2026 — Article 3.2.3, p.17)" — the sentence the contract now MANDATES,
+      # grounded in global 3.2.3's own text. The S4 pattern forbids it. The guard is
+      # re-aimed at what A16 is actually about: a precedence claim BETWEEN the two
+      # unrelated articles that share the number 3.2.3.
+      - check: forbid
+        pattern: 'Counter-Strike 2[^.]{0,80}(governs|prevails|takes precedence)\s+over|(governs|prevails|takes precedence)\s+over[^.]{0,60}Counter-Strike 2'
+        why: "A16: precedence between cs2 3.2.3 and global 3.2.3 is meaningless — they are unrelated articles sharing a number"
+      - check: forbid
+        pattern: '(is|are) in conflict with'
+        why: "an affirmative conflict claim here would be fabricated (A16: a loaded gun for S5 resolve)"
+
+  - id: conflict-vac-six-year
+    bucket: conflict
+    question: "Is a player with a 6-year-old VAC ban eligible?"
+    game: cs2
+    generate: true
+    notes: >
+      NEW at S5, per 008 verifier ruling 5. The existing conflict-publisher-bans
+      wording ("How are publisher bans AND VAC bans handled...") enumerates both
+      concepts and INVITES dual-book coverage — it flatters the pipeline. This is
+      006's natural discriminating wording, where the two books give DIFFERENT
+      answers: cs2 4.8 honours VAC bans "but only for five (5) years", so a
+      6-year-old ban has expired; global 5.1.12 has no time limit and lets the TO
+      refuse the player. Under CLAUDE.md #1 the title rule governs, and the answer
+      must say so. Retrieval measured 2026-08-14: cs2 4.8 at rank 2, global 5.1.12
+      at rank 8 — both present, so this is a generation test, not a retrieval one.
+    retrieval:
+      must_include:
+        - {game: cs2, article: "4.8"}
+        - {game: global, article: "5.1.12"}
+    answer:
+      - {check: require, pattern: 'five \(5\) years|five years|5 years', why: "the load-bearing CS2 4.8 limit"}
+      - {check: require_citation, book: "Counter-Strike 2", article: "4.8", pages: [21]}
+      # B8 was opened and CLOSED inside this stage. Measured 0/3 while resolve's
+      # CONFLICT line said only "cite both": the answer stated that the CS2 rule
+      # governs but cited CS2 alone, with global 5.1.12 at retrieval rank 8. The
+      # note now names both citations explicitly and says why a precedence claim
+      # is uncheckable against an uncited book. Measured 4/4 after; the same
+      # change also took conflict-media-fines from a flaky 2/3 to 4/4.
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "5.1.12", pages: [27]}
+      - {check: require, pattern: '(govern|prevail|precede|take[s]? precedence)', why: "CLAUDE.md #1: the title rule governs and the answer must SAY so"}
+
+  - id: conflict-pubgm-crossref-agreement
+    bucket: conflict
+    question: "How do penalty points affect prize money in PUBG Mobile?"
+    game: pubg-mobile
+    generate: true
+    notes: >
+      NEW at S5, per 008 verifier ruling 4 (should-add). The fourth 006 pair and a
+      surface no other case covers: pubg-mobile 13.6 CROSS-REFERENCES Global by
+      section number — "as defined in Section 5.1.2.1 Penalty Points in the EWC
+      Global Rulebook". resolve classifies this as cross_ref, i.e. agreement by
+      incorporation. The answer must NOT invent precedence between a book and the
+      book it explicitly defers to.
+    retrieval:
+      must_include:
+        - {game: pubg-mobile, article: "13.6"}
+        - {game: global, article: "5.1.2.1"}
+    answer:
+      - {check: require, pattern: 'one percent|1\s?%', why: "the incorporated rule's content"}
+      - {check: require_citation, book: "PUBG Mobile", article: "13.6", pages: [26]}
+      - check: forbid
+        pattern: '(governs|prevails|takes precedence)\s+over'
+        why: "a cross-reference is agreement by incorporation; precedence here is invented"
+
+  - id: amendment-global-3-2-3
+    bucket: conflict
+    question: "Can a team that lost its roster majority for reasons outside its control still earn Club Championship Points?"
+    game: cs2
+    generate: true
+    notes: >
+      NEW at S5 — the FIRST live coverage of CLAUDE.md non-negotiable #2, which
+      had ZERO test coverage in any earlier stage because no amendment layer
+      existed. articles.py finds exactly one published amendment (Global Rulebook
+      Update: Article 3.2.3, Team Roster Integrity, effective 2026-07-17) and
+      indexes it at scope=amendment / authority=2. Retrieval measured 2026-08-14:
+      the amendment chunk at RANK 1, the base global 3.2.3 at rank 3 — both in
+      evidence, which is the geometry contract #2 describes.
+
+      The `forbid` below is the contract-#2 assertion proper. "No expectations
+      were permitted" is a sentence from the notice's *Previous rule* section,
+      describing the rule BEFORE the amendment. An answer repeating it as the
+      current position is exactly "quoting a superseded article as current".
+    retrieval:
+      must_include:
+        - {game: global, article: "3.2.3", scope: amendment}
+        - {game: global, article: "3.2.3", scope: global}
+    answer:
+      - {check: require, pattern: '(amend|updated|as amended)', why: "contract #2: the article is presented AS AMENDED, not as if unamended"}
+      # Written too tightly on first draft (verbatim 'exceptional circumstances',
+      # measured 1/3) — the pipeline paraphrases, which is what closing B7 asks of
+      # it. Re-stated as the substance the amendment actually adds.
+      - {check: require, pattern: '(exceptional circumstances|(outside|beyond)[^.]{0,30}control)', why: "the substance the amendment adds: an exception for circumstances outside the Participant's control"}
+      - {check: require_citation, book: "EWC Global Rulebook 2026 Amendment 2026-07-17", article: "3.2.3", pages: [1]}
+      - check: forbid
+        pattern: 'No expectations were permitted'
+        why: "contract #2: that sentence describes the PREVIOUS rule; stating it as current is the defect"
+
+  # =================================================================================
+  # CROSS-SCOPE bucket — leakage guards and scope/abstention behaviour.
+  # =================================================================================
+
+  - id: xscope-leak-codmw3-warzone
+    bucket: cross-scope
+    question: "What are the rules for Warzone loadouts?"
+    game: cod-mw3
+    generate: false
+    notes: "S1-mandated leakage probe; 0 leaks at 005 and 006. Store-level filter guard."
+    retrieval:
+      must_exclude_games: [warzone]
+
+  - id: xscope-leak-warzone-codmw3
+    bucket: cross-scope
+    question: "What are the Black Ops 7 roster rules?"
+    game: warzone
+    generate: false
+    notes: "Reverse direction of the cod-mw3/warzone pair."
+    retrieval:
+      must_exclude_games: [cod-mw3]
+
+  - id: xscope-leak-mlbbw-mlbb
+    bucket: cross-scope
+    question: "What are the roster rules in men's MLBB?"
+    game: mlbb-women
+    generate: false
+    notes: "mlbb-women asked for men's MLBB content; 006 measured pool 100% mlbb-women+global."
+    retrieval:
+      must_exclude_games: [mlbb]
+
+  - id: xscope-leak-mlbb-mlbbw
+    bucket: cross-scope
+    question: "What are the roster rules in women's MLBB?"
+    game: mlbb
+    generate: false
+    notes: "Reverse direction of the mlbb/mlbb-women pair."
+    retrieval:
+      must_exclude_games: [mlbb-women]
+
+  - id: xscope-leak-valorant-cs2
+    bucket: cross-scope
+    question: "What are the CS2 map veto rules?"
+    game: valorant
+    generate: false
+    notes: >
+      CLAUDE.md #5's own example: a question routed to valorant must not retrieve
+      cs2 chunks. 007 measured 0 cs2 chunks and a refusal.
+    retrieval:
+      must_exclude_games: [cs2]
+
+  - id: xscope-ow2-abstain
+    bucket: cross-scope
+    question: "What are the roster rules for Overwatch 2 at the Esports World Cup?"
+    game: null
+    route: auto
+    generate: true
+    notes: >
+      OW2 has no published PDF (known corpus hole since S1). The router must return
+      None — never substitute a listed title — and the answer must abstain while
+      naming what was searched.
+    retrieval:
+      route_expect: none
+      only_scopes: [global, amendment]
+    answer:
+      - check: require_any
+        patterns: ['does not cover', 'not covered', 'do(es)? not (state|address|contain|cover|answer|provide)', 'excerpts do not']
+        why: "abstention, not an answer from priors"
+      - {check: require, pattern: 'Global Rulebook', why: "must name what was searched"}
+
+  - id: xscope-forfeit-grace-abstain
+    bucket: cross-scope
+    question: "How long is the grace period before a forfeit?"
+    game: null
+    route: auto
+    generate: true
+    notes: >
+      The lateness-abstention artifact, pinned as EXPECTED (006): this is
+      CLAUDE.md's own example command; at general scope it must abstain because
+      Global has NO punctuality/grace-period rule at all (verified across all 159
+      Global chunks at 006) — the rule lives only in title books (cs2 2.8.x).
+      Abstention is a success state.
+    retrieval:
+      route_expect: none
+      only_scopes: [global, amendment]
+    answer:
+      - check: require_any
+        patterns: ['does not cover', 'not covered', 'do(es)? not (state|address|contain|cover|answer|provide)', 'excerpts do not']
+        why: "expected abstention — answering here would be reasoning from priors"
+      - {check: require, pattern: 'Global Rulebook', why: "must name what was searched"}
+
+  # =================================================================================
+  # NORMAL bucket — single-book retrieval and answer fidelity.
+  # =================================================================================
+
+  - id: normal-cs2-lateness-ladder
+    bucket: normal
+    question: "What happens if a Counter-Strike 2 team is late to a match?"
+    game: cs2
+    generate: true
+    notes: >
+      The B2 fixture verbatim (logs/007: GENUINELY FIXED, 4/4): warning at 10
+      minutes, 1 point per 5 minutes to a max of 8, 1.5 points per 2 minutes to 15
+      minutes for a MAX OF 12 (the cap the 007 verifier caught after the original
+      brief omitted it), +100% repeat-offender from match 3, forfeit at 15 minutes,
+      citing 2.8.2/2.8.3/2.8.4. The verbatim auto-check is expected to fire here
+      (B7: 115 unmarked words from 2.8.4) — known_fail, not blocking.
+    retrieval:
+      must_include:
+        - {game: cs2, article: "2.8.2"}
+        - {game: cs2, article: "2.8.3"}
+        - {game: cs2, article: "2.8.4"}
+    answer:
+      - {check: require, pattern: 'warning', why: "10-minute warning (2.8.2)"}
+      - {check: require, pattern: '(\b10\b|ten)', why: "the 10-minute threshold"}
+      - {check: require, pattern: '(\b8\b|eight)', why: "max 8 penalty points (2.8.2)"}
+      - {check: require, pattern: '(1\.5|one and a half)', why: "1.5 points per 2 minutes (2.8.2) — measured phrasing includes the spelled-out form"}
+      - {check: require, pattern: '(\b12\b|twelve)', why: "max 12 penalty points — the cap the 007 verifier caught"}
+      - {check: require, pattern: '100\s?%', why: "repeat-offender +100% (2.8.3)"}
+      - {check: require, pattern: '(match 3|third match|repeat offend)', why: "from match 3 (2.8.3)"}
+      - {check: require, pattern: 'forfeit', why: "no-show forfeit (2.8.4)"}
+      - {check: require_citation, book: "Counter-Strike 2", article: "2.8.2", pages: [11]}
+      - {check: require_citation, book: "Counter-Strike 2", article: "2.8.3", pages: [11]}
+      - {check: require_citation, book: "Counter-Strike 2", article: "2.8.4", pages: [11, 12]}
+
+  - id: normal-mlbb-alcohol-sponsor
+    bucket: normal
+    question: "Can a Mobile Legends: Bang Bang team have an alcohol sponsor?"
+    game: mlbb
+    generate: true
+    notes: >
+      mlbb 9.1.4 (p.50) is the literal list item "alcohol;" under the sponsorship
+      prohibition. Retrieval measured: 9.1.4 at rank 1.
+    retrieval:
+      must_include:
+        - {game: mlbb, article: "9.1.4"}
+    answer:
+      - {check: require_citation, book: "Mobile Legends: Bang Bang", article: "9.1.4", pages: [50]}
+
+  - id: normal-b1-cheating-attribution
+    bucket: normal
+    question: "What sanction does a player face for cheating?"
+    game: cs2
+    generate: true
+    notes: >
+      B1's fixture (logs/006: closed 5/5): the sanction must be attributed to the
+      EWC Global Rulebook 2026 Article 5.1.7.3 (p.25) ALONE — no CS2-attributed
+      citation of a Global article (the original fabrication shape).
+    retrieval:
+      must_include:
+        - {game: global, article: "5.1.7.3"}
+    answer:
+      - {check: require_citation, book: "EWC Global Rulebook 2026", article: "5.1.7.3", pages: [25]}
+      - check: forbid_citation
+        book: "Counter-Strike 2"
+        article: "5.1.7.3"
+        why: "the B1 fabrication: a Global article wearing the CS2 book's name"
+
+  - id: normal-dota2-attributable-hedge
+    bucket: normal
+    question: "How are repeat offences punished in Dota 2?"
+    game: dota2
+    generate: true
+    notes: >
+      Exercises the hedge detector's design constraint (006 ruling 3): dota2 1.4.2
+      (p.8) itself says repeat offences "will usually be punished more severely".
+      A faithful answer may echo that hedge — the auto-check must NOT flag it,
+      because it is attributable to retrieved excerpt text. A flat regex would fail
+      this case; that is the point of including it.
+    retrieval:
+      must_include:
+        - {game: dota2, article: "1.4.2"}
+    answer:
+      - {check: require_citation, book: "Dota 2", article: "1.4.2", pages: [8]}
+      - {check: require, pattern: '(more severe|severely)', why: "the rule's content"}
+
+  - id: normal-tok-dotted-prefix-children
+    bucket: normal
+    question: "What does Article 5.1.19 cover?"
+    game: null
+    generate: false
+    notes: >
+      Token-exact retrieval, the dotted-prefix WIN (005 ruling 3): Global has no
+      bare 5.1.19 chunk, only 5.1.19.x children; "Article 5.1.19" must reach them.
+      Measured today: 5 of top 8 are 5.1.19.x.
+    retrieval:
+      must_include:
+        - {game: global, article_prefix: "5.1.19"}
+
+  - id: normal-tok-parent-still-findable
+    bucket: normal
+    question: "What does Article 3.2 cover?"
+    game: null
+    generate: false
+    notes: >
+      The counter-direction (005 ruling 3's regression): after the prefix-tokenizer
+      change, "Article 3.2" dropped the bare-3.2 BM25 rank-1 hit. Pass criteria set
+      FROM MEASUREMENT (2026-08-13): at hybrid level the top 8 contains 3.2-family
+      articles (3.2.7 rank 2, 3.2.3 rank 6), though not the bare "3.2" chunk (p.43)
+      itself. Pinned at the measured level: at least one 3.2 / 3.2.x Global article
+      in the top 8. Tightening this to the bare parent is an S5+ decision.
+    retrieval:
+      must_include:
+        - {game: global, article_prefix: "3.2"}
+
+  - id: normal-mlbb-gor-parent
+    bucket: normal
+    question: "When does a game count as a Game of Record in MLBB?"
+    game: mlbb
+    generate: false
+    notes: >
+      The S2 B1 repair fixture, parent half: mlbb 6.2 (Game of Record, p.28)
+      retrievable topically (measured: rank 1). The four children have
+      sentence-fragment headings and are NOT reachable topically (measured: absent
+      from the fused top 20) — they are pinned via token-exact probes below, which
+      is the retrievability the S2 repair established.
+    retrieval:
+      must_include:
+        - {game: mlbb, article: "6.2"}
+
+  - id: normal-mlbb-gor-child-6-2-1
+    bucket: normal
+    question: "What does Article 6.2.1 of the MLBB rulebook say?"
+    game: mlbb
+    generate: false
+    retrieval:
+      must_include: [{game: mlbb, article: "6.2.1"}]
+
+  - id: normal-mlbb-gor-child-6-2-2
+    bucket: normal
+    question: "What does Article 6.2.2 of the MLBB rulebook say?"
+    game: mlbb
+    generate: false
+    retrieval:
+      must_include: [{game: mlbb, article: "6.2.2"}]
+
+  - id: normal-mlbb-gor-child-6-2-3
+    bucket: normal
+    question: "What does Article 6.2.3 of the MLBB rulebook say?"
+    game: mlbb
+    generate: false
+    retrieval:
+      must_include: [{game: mlbb, article: "6.2.3"}]
+
+  - id: normal-mlbb-gor-child-6-2-4
+    bucket: normal
+    question: "What does Article 6.2.4 of the MLBB rulebook say?"
+    game: mlbb
+    generate: false
+    retrieval:
+      must_include: [{game: mlbb, article: "6.2.4"}]
+
+  # =================================================================================
+  # PIPELINE-QUALITY probes — the NEW machinery's measured defects (all known_fail).
+  # =================================================================================
+
+  - id: pipeline-b5-sibling-padding
+    bucket: pipeline
+    question: "How many players are on a Rocket League team?"
+    game: rocket-league
+    generate: true
+    notes: >
+      B5 (logs/007): unused_sibling_articles() forces irrelevant siblings into
+      answers — 3/3 runs a team-size question returned 2.2.2 "Travel &
+      Accommodation Coverage" content, and answers discuss articles they then call
+      irrelevant. Fires on 17/18 substantive answers; the relevance judgement
+      belongs in S5's resolve. The actual team size (three players, 2.2.1 p.3) must
+      still be right.
+    retrieval:
+      must_include:
+        - {game: rocket-league, article: "2.2.1"}
+    answer:
+      - {check: require, pattern: '(three|\b3\b)', why: "the actual answer (2.2.1: three players)"}
+      - {check: require_citation, book: "Rocket League", article: "2.2.1", pages: [3]}
+      # PROMOTED at S5 from known_fail. B5 is closed: unused_sibling_articles()
+      # now needs TWO already-cited siblings of the parent (a ladder in use) AND
+      # the skipped article inside resolve's accountable set (fused rank <= 4).
+      # Measured NOW PASSING 3/3 at --runs 3 before promotion.
+      - {check: forbid, pattern: '(travel|accommodation|hotel)', why: "a team-size question must not return hotel-coverage text"}
+      # PROMOTED at S5 from known_fail (measured NOW PASSING 3/3).
+      - {check: forbid, pattern: 'do(es)? not (directly )?(address|apply|relate|bear)|not (directly )?relevant|does not pertain', why: "the answer must not be compelled to discuss articles it then disavows"}

@@ -1,0 +1,50 @@
+# EWC Rulebook RAG — pinned direct dependencies.
+# Resolved and installed against Python 3.11 (see .python-version). CLAUDE.md floor: 3.11+.
+# Direct deps are pinned; transitive deps float within their own constraints.
+# Re-pin by re-resolving, not by hand-editing.
+
+# --- Orchestration / framework -------------------------------------------------
+langchain==1.3.14
+langchain-core==1.5.3
+langchain-community==0.4.2          # BM25Retriever (lexical half of hybrid retrieval)
+                                    # NOTE: emits a "being sunset" DeprecationWarning on
+                                    # import; BM25Retriever still works at this pin.
+langchain-text-splitters==1.1.2     # RecursiveCharacterTextSplitter (oversized articles only)
+langgraph==1.2.10                   # route -> retrieve -> grade -> resolve -> answer
+
+# --- Vector store --------------------------------------------------------------
+chromadb==1.5.9
+langchain-chroma==1.1.0
+
+# --- Lexical retrieval ---------------------------------------------------------
+rank-bm25==0.2.2                    # backing implementation for BM25Retriever
+
+# --- OpenAI (embeddings + generation) ------------------------------------------
+langchain-openai==1.4.3
+openai==2.53.0
+
+# --- PDF extraction ------------------------------------------------------------
+# PyMuPDF only. Page numbers must survive extraction; do NOT swap in PyPDFLoader.
+pymupdf==1.28.2
+                                    # NOTE: `import fitz` works but warns at 1.28; prefer
+                                    # `import pymupdf` — same library, current name.
+
+# --- Polite serial HTML crawl (ingest.py, articles.py) -------------------------
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.1                         # parser for the no-JS fallback listing markup
+
+# --- HTTP layer (server.py, S6b) -----------------------------------------------
+# Starlette rather than FastAPI: the routes here take plain JSON dicts and the
+# only schema work is `route`'s structured output, which pydantic already covers.
+# Starlette also brings FileResponse with Range support, which the PDF viewer
+# needs to page a 1 MB rulebook without refetching it. uvicorn was already
+# present transitively (chromadb); it is pinned here because server.py imports
+# it directly and a direct dep must not float on someone else's constraint.
+starlette==1.6.0
+uvicorn==0.52.1
+
+# --- Config / eval -------------------------------------------------------------
+python-dotenv==1.2.2                # loads OPENAI_API_KEY from .env
+pyyaml==6.0.3                       # eval/queries.yaml
+pydantic==2.13.4                    # structured output for the `route` node

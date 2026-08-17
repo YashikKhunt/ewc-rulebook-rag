@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EWC Rulebook RAG — visual mockup (NOT WIRED TO DATA)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATIC MOCKUP — every value below is hardcoded and fictional.
+   Not an implementation reference for behaviour. frontend/DESIGN.md is.
+   Production must self-host fonts (no CDN) per CLAUDE.md.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --paper:#F7F4EE; --paper-raised:#FFFDF8; --paper-sunk:#EFEBE2;
+  --ink:#1A1815; --ink-2:#4A463F; --ink-3:#6E685E;
+  --rule:#DED8CC; --rule-strong:#C4BBA9;
+  --auth-global:#2F4B7C;    --auth-global-bg:#EAEEF6;
+  --auth-title:#8A5A0B;     --auth-title-bg:#F6EEDE;
+  --auth-amendment:#9E3418; --auth-amendment-bg:#F7E9E3;
+  --alert:#B3261E; --focus:#1A1815;
+  --grain-blend:multiply;
+
+  --serif:Literata,'Iowan Old Style',Charter,Georgia,serif;
+  --sans:Archivo,'Helvetica Neue',Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,0,0,1);
+}
+:root[data-theme="dark"]{
+  --paper:#15120D; --paper-raised:#1D1913; --paper-sunk:#100E0A;
+  --ink:#EDE6D8; --ink-2:#B8AE9C; --ink-3:#8C8474;
+  --rule:#322C22; --rule-strong:#4A4234;
+  --auth-global:#8FB0E8;    --auth-global-bg:#1B2436;
+  --auth-title:#E0A94A;     --auth-title-bg:#2E2412;
+  --auth-amendment:#F0836A; --auth-amendment-bg:#331912;
+  --alert:#FF9C8F; --focus:#EDE6D8;
+  --grain-blend:overlay;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#15120D; --paper-raised:#1D1913; --paper-sunk:#100E0A;
+    --ink:#EDE6D8; --ink-2:#B8AE9C; --ink-3:#8C8474;
+    --rule:#322C22; --rule-strong:#4A4234;
+    --auth-global:#8FB0E8;    --auth-global-bg:#1B2436;
+    --auth-title:#E0A94A;     --auth-title-bg:#2E2412;
+    --auth-amendment:#F0836A; --auth-amendment-bg:#331912;
+    --alert:#FF9C8F; --focus:#EDE6D8;
+    --grain-blend:overlay;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+/* paper grain — one inline asset, no network */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.03;
+  mix-blend-mode:var(--grain-blend);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+
+.eyebrow{font:600 11px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.12em}
+.mono{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.serif{font-family:var(--serif)}
+
+/* ── banner ─────────────────────────────────────────────────────────────── */
+.mockbar{
+  background:var(--ink);color:var(--paper);padding:7px 16px;
+  font:600 11px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  display:flex;justify-content:space-between;gap:16px
+}
+.mockbar a{color:var(--paper)}
+
+/* ── shell ──────────────────────────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:280px 1fr 46vw;height:calc(100% - 28px)}
+@media(max-width:1100px){.shell{grid-template-columns:280px 1fr}.viewer{display:none}}
+
+/* ── history rail ───────────────────────────────────────────────────────── */
+.rail{border-right:1px solid var(--rule);display:flex;flex-direction:column;background:var(--paper-sunk)}
+.rail-head{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--rule)}
+.rail-head .eyebrow{color:var(--ink-3)}
+.btn-ghost{font:500 12.5px var(--sans);background:none;border:1px solid var(--rule-strong);
+  border-radius:2px;padding:3px 9px;color:var(--ink);cursor:pointer}
+.rail-list{flex:1;overflow:auto;padding:6px 0}
+.entry{display:block;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;
+  padding:9px 16px;cursor:pointer;color:var(--ink);font-family:var(--sans)}
+.entry:hover{background:var(--paper)}
+.entry[aria-current="true"]{background:var(--paper-raised);border-left-color:var(--ink)}
+.entry .t{font-size:13.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.entry .m{color:var(--ink-3);margin-top:3px}
+.ledger{border-top:1px solid var(--rule);padding:12px 16px}
+.meter{height:3px;background:var(--rule);margin:7px 0 5px;border-radius:2px;overflow:hidden}
+.meter i{display:block;height:100%;width:11.4%;background:var(--ink-2)}
+
+/* ── centre ─────────────────────────────────────────────────────────────── */
+.centre{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--rule)}
+.corpusbar{height:40px;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding:0 24px;border-bottom:1px solid var(--rule);background:var(--paper-raised)}
+.wordmark{font:600 12px var(--sans);letter-spacing:.16em;text-transform:uppercase}
+.corpusbar .mono{color:var(--ink-3)}
+.stream{flex:1;overflow:auto;padding:32px 24px 8px}
+.wrap{max-width:760px;margin:0 auto}
+
+/* ── turn ───────────────────────────────────────────────────────────────── */
+.turn{padding-bottom:48px;margin-bottom:48px;border-bottom:1px solid var(--rule)}
+.turn:last-child{border-bottom:0}
+.qmeta{color:var(--ink-3);margin-bottom:7px}
+.question{font:400 22px/1.3 var(--serif);margin-bottom:18px}
+
+/* scope ledger — always present, never collapsible */
+.scope{border:1px solid var(--rule-strong);border-radius:2px;background:var(--paper-raised);
+  padding:11px 14px;margin-bottom:20px}
+.scope .eyebrow{color:var(--ink-3);margin-bottom:8px}
+.books{display:flex;flex-wrap:wrap;gap:8px 20px}
+.book{display:flex;align-items:center;gap:8px}
+.book .n{font:500 13.5px var(--sans)}
+.book .c{color:var(--ink-3)}
+.scope .routed{margin-top:9px;color:var(--ink-3);border-top:1px dotted var(--rule-strong);padding-top:7px}
+
+/* authority badge — colour + glyph + border, never colour alone */
+.badge{width:18px;height:18px;flex:0 0 18px;display:grid;place-items:center;border-radius:2px;
+  font:500 10px var(--mono);letter-spacing:0}
+.b-g{color:var(--auth-global);background:var(--auth-global-bg);border:1px solid var(--auth-global)}
+.b-t{color:var(--auth-title);background:var(--auth-title-bg);
+  box-shadow:inset 0 0 0 1px var(--auth-title),inset 0 0 0 3px var(--auth-title-bg),inset 0 0 0 4px var(--auth-title)}
+.b-a{color:var(--auth-amendment);background:var(--auth-amendment-bg);border:1px solid var(--auth-amendment);
+  border-top-width:3px}
+
+/* title mismatch banner — the B-2 guard, heavier than anything else */
+.mismatch{margin-bottom:22px;padding:16px 0;
+  border-top:4px solid transparent;border-bottom:4px solid transparent;
+  border-image:repeating-linear-gradient(135deg,var(--ink) 0 3px,transparent 3px 8px) 4}
+.mismatch .eyebrow{margin-bottom:9px}
+.mismatch p{font:400 15px/1.5 var(--serif);margin-bottom:8px;max-width:62ch}
+.mismatch .btn{margin-top:6px;font:500 12.5px var(--sans);background:var(--ink);color:var(--paper);
+  border:0;border-radius:2px;padding:7px 12px;cursor:pointer}
+
+/* precedence notice */
+.notice{border:1px solid var(--rule);border-left-width:3px;border-radius:2px;
+  padding:12px 14px;margin-bottom:14px;background:var(--paper-raised)}
+.notice .eyebrow{margin-bottom:7px}
+.notice p{font:400 14.5px/1.5 var(--serif);color:var(--ink-2);max-width:64ch}
+.notice .locs{margin-top:9px;display:flex;flex-wrap:wrap;gap:8px}
+.loc{font-family:var(--mono);font-size:12px;border:1px solid var(--rule-strong);background:var(--paper);
+  border-radius:2px;padding:3px 7px;cursor:pointer;color:var(--ink-2)}
+.n-title{border-left-color:var(--auth-title)}      .n-title .eyebrow{color:var(--auth-title)}
+.n-global{border-left-color:var(--auth-global)}    .n-global .eyebrow{color:var(--auth-global)}
+.n-amend{border-left-color:var(--auth-amendment)}  .n-amend .eyebrow{color:var(--auth-amendment)}
+.n-none{border-left-color:var(--rule-strong)}      .n-none .eyebrow{color:var(--ink-3)}
+.caveat{margin-top:10px;border:1px solid var(--rule);border-radius:2px;padding:9px 11px;background:var(--paper)}
+.caveat .eyebrow{color:var(--ink-3);margin-bottom:5px}
+.caveat q{font:400 14px/1.5 var(--serif);font-style:italic;color:var(--ink-2)}
+
+/* answer prose + welded citations */
+.answer{font:400 16px/1.55 var(--serif);max-width:68ch;white-space:pre-wrap}
+.answer p+p{margin-top:14px}
+.cite{font-family:var(--mono);font-size:12.5px;white-space:nowrap;text-decoration:none;
+  border-bottom:1px solid currentColor;padding-bottom:1px}
+.c-t{color:var(--auth-title)} .c-g{color:var(--auth-global)} .c-a{color:var(--auth-amendment)}
+.cite:hover,.cite:focus-visible{border-bottom-width:2px}
+.cite.active{border-bottom-width:2px;background:var(--auth-title-bg)}
+.uncited{color:var(--ink-3);font-family:var(--mono);font-size:12px}
+
+/* disclosure strip */
+.disclose{margin-top:18px;border:1px solid var(--rule-strong);border-radius:2px;padding:10px 12px}
+.disclose .eyebrow{color:var(--ink-3);margin-bottom:6px}
+.disclose li{font-family:var(--mono);font-size:12px;color:var(--ink-2);list-style:none;margin-top:3px}
+
+/* abstention + withheld — structure, never colour */
+.panel{border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong);
+  padding:24px 0;margin:4px 0}
+.panel .eyebrow{color:var(--ink-2);margin-bottom:12px}
+.panel .body{font:400 16px/1.55 var(--serif);max-width:68ch}
+.panel .gloss{font:400 13.5px/1.5 var(--sans);color:var(--ink-2);margin-top:14px;max-width:64ch}
+.panel.withheld{padding-left:18px;border-left:4px solid transparent;
+  border-image:repeating-linear-gradient(135deg,var(--ink-3) 0 2px,transparent 2px 6px) 4}
+
+/* context surface */
+.ctx-head{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin:26px 0 12px;padding-top:18px;border-top:1px solid var(--rule)}
+.ctx-head .eyebrow{color:var(--ink-3)}
+.seg{display:flex;border:1px solid var(--rule-strong);border-radius:2px;overflow:hidden}
+.seg button{font:500 11.5px var(--sans);background:var(--paper);border:0;padding:5px 10px;
+  cursor:pointer;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.card{border:1px solid var(--rule);border-left-width:3px;border-radius:2px;
+  background:var(--paper-raised);margin-bottom:10px}
+.card.g{border-left-color:var(--auth-global)} .card.t{border-left-color:var(--auth-title)}
+.card.a{border-left-color:var(--auth-amendment)}
+.card.external{border-image:repeating-linear-gradient(135deg,var(--ink-3) 0 2px,transparent 2px 6px) 3;
+  border-left-width:3px}
+.card.open{background:var(--paper);box-shadow:inset 0 0 0 1px var(--rule-strong)}
+.card-h{display:flex;gap:11px;padding:11px 13px 9px}
+.card-h .grow{min-width:0;flex:1}
+.card-h .bk{font:500 13.5px var(--sans)}
+.card-h .lc{color:var(--ink-2);margin-top:2px}
+.card-h .tr{color:var(--ink-3);margin-top:3px;font-size:11.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-h .rk{color:var(--ink-3);text-align:right;flex:0 0 auto;white-space:nowrap}
+.card-b{border-top:1px solid var(--rule);padding:11px 13px;font:400 14.5px/1.5 var(--serif);color:var(--ink-2)}
+.card-b .label{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:6px}
+.card-f{border-top:1px solid var(--rule);padding:8px 13px;display:flex;justify-content:space-between;
+  gap:12px;align-items:center;color:var(--ink-3);flex-wrap:wrap}
+.open-btn{font:500 12px var(--mono);background:none;border:1px solid var(--rule-strong);border-radius:2px;
+  padding:4px 9px;cursor:pointer;color:var(--ink)}
+.tag{font-family:var(--mono);font-size:11px;border:1px solid var(--rule-strong);border-radius:2px;
+  padding:2px 6px;color:var(--ink-2)}
+.star{color:var(--ink);font-size:11px;font-family:var(--mono)}
+
+/* composer */
+.composer{border-top:1px solid var(--rule);background:var(--paper-raised);padding:14px 24px 16px}
+.composer .wrap{display:flex;flex-direction:column;gap:10px}
+.ta{width:100%;min-height:54px;resize:none;border:1px solid var(--rule-strong);border-radius:2px;
+  background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--serif);padding:11px 13px}
+.crow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sel{font:500 12.5px var(--mono);border:1px solid var(--rule-strong);border-radius:2px;
+  background:var(--paper);color:var(--ink);padding:6px 9px}
+.pre{color:var(--ink-3);flex:1;min-width:180px}
+.btn{font:500 13px var(--sans);border-radius:2px;padding:8px 15px;cursor:pointer}
+.btn-1{background:var(--ink);color:var(--paper);border:1px solid var(--ink)}
+.btn-2{background:none;color:var(--ink);border:1px solid var(--rule-strong)}
+
+/* ── source viewer drawer ───────────────────────────────────────────────── */
+.viewer{display:flex;flex-direction:column;background:var(--paper-sunk);min-width:0}
+.v-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:12px 18px;border-bottom:1px solid var(--rule);background:var(--paper-raised)}
+.v-head .bk{font:500 14px var(--sans)}
+.v-head .lc{color:var(--ink-2);margin-top:2px}
+.x{background:none;border:1px solid var(--rule-strong);border-radius:2px;
+  width:26px;height:26px;cursor:pointer;color:var(--ink);font-family:var(--mono)}
+.prov{padding:11px 18px;border-bottom:1px solid var(--rule);background:var(--paper)}
+.prov .eyebrow{color:var(--ink-2);margin-bottom:6px}
+.prov p{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink-2);max-width:60ch}
+.prov p.warn{color:var(--ink);margin-top:5px}
+.v-body{flex:1;overflow:auto;padding:20px 18px;display:flex;justify-content:center}
+.page{width:100%;max-width:430px;aspect-ratio:1/1.35;background:var(--paper-raised);
+  border:1px solid var(--rule-strong);border-radius:2px;position:relative;
+  padding:34px 30px;font:400 11px/1.7 var(--serif);color:var(--ink-3);overflow:hidden}
+.page::before{content:"";position:absolute;left:10px;top:120px;bottom:180px;width:2px;background:var(--auth-title)}
+.page .ph{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);position:absolute;left:30px;bottom:16px}
+.page h4{font:500 12px var(--sans);color:var(--ink-2);margin:14px 0 5px}
+.v-foot{border-top:1px solid var(--rule);padding:9px 18px;display:flex;justify-content:space-between;
+  gap:12px;align-items:center;color:var(--ink-3);background:var(--paper-raised);flex-wrap:wrap}
+.v-foot a{color:var(--ink-2)}
+
+/* swatch appendix */
+.appendix{max-width:760px;margin:0 auto;padding:40px 24px 60px;border-top:1px solid var(--rule-strong)}
+.sw{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 22px}
+.sw div{border:1px solid var(--rule);border-radius:2px;padding:9px 11px;min-width:150px}
+.sw b{display:block;font:500 12px var(--sans)}
+.sw span{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+h3.sec{font:600 17px var(--sans);margin:26px 0 8px}
+</style>
+</head>
+<body>
+
+<div class="mockbar">
+  <span>◆ Static mockup — not wired to data · every value fictional</span>
+  <span><a href="#" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';return false">toggle light / dark ▸</a></span>
+</div>
+
+<div class="shell">
+
+  <!-- ── HISTORY RAIL ──────────────────────────────────────────────────── -->
+  <aside class="rail">
+    <div class="rail-head"><span class="eyebrow">Enquiries</span><button class="btn-ghost">New</button></div>
+    <div class="rail-list">
+      <button class="entry" aria-current="true">
+        <span class="t">CS2 map veto timing before a scheduled start</span>
+        <span class="m mono">4 turns · 14 Aug · valorant, global</span>
+      </button>
+      <button class="entry">
+        <span class="t">Roster majority and Club Championship Points</span>
+        <span class="m mono">7 turns · 14 Aug · global, amendment</span>
+      </button>
+      <button class="entry">
+        <span class="t">Alcohol sponsor restrictions, MLBB</span>
+        <span class="m mono">2 turns · 13 Aug · mlbb, global</span>
+      </button>
+      <button class="entry">
+        <span class="t">Apex / ALGS player eligibility</span>
+        <span class="m mono">Δ 1 turn · 11 Aug · apex, global</span>
+      </button>
+    </div>
+    <div class="ledger">
+      <div class="eyebrow" style="color:var(--ink-3)">Budget</div>
+      <div class="meter"><i></i></div>
+      <div class="mono">$0.5681 / $5.00</div>
+      <div class="mono" style="color:var(--ink-3);margin-top:4px">this turn $0.000412</div>
+    </div>
+  </aside>
+
+  <!-- ── CENTRE ────────────────────────────────────────────────────────── -->
+  <main class="centre">
+    <div class="corpusbar">
+      <span class="wordmark">EWC Rulebook RAG</span>
+      <span class="mono">2382 chunks · 25 books · 1 amendment · e5819299</span>
+      <span class="mono" style="color:var(--ink-3)">◐ theme</span>
+    </div>
+
+    <div class="stream">
+      <div class="wrap">
+
+        <!-- ══ TURN 1 — answered, with a conflict finding and the B-2 guard ══ -->
+        <article class="turn">
+          <div class="qmeta mono">14 Aug 2026, 10:52 · gpt-4o-mini · $0.000412 · 4.1s</div>
+          <h2 class="question">What are the CS2 map veto rules?</h2>
+
+          <div class="scope">
+            <div class="eyebrow">Searched</div>
+            <div class="books">
+              <span class="book"><span class="badge b-t">T</span><span class="n">VALORANT</span><span class="c mono">6 excerpts</span></span>
+              <span class="book"><span class="badge b-g">G</span><span class="n">EWC Global Rulebook 2026</span><span class="c mono">2 excerpts</span></span>
+            </div>
+            <div class="routed mono">ROUTED AUTOMATICALLY · Counter-Strike 2 was not searched</div>
+          </div>
+
+          <div class="mismatch" role="alert">
+            <div class="eyebrow">Your question names a rulebook that was not searched</div>
+            <p>You mentioned <strong>Counter-Strike 2</strong>. This answer was produced from
+               <strong>VALORANT</strong> and the <strong>EWC Global Rulebook 2026</strong>.</p>
+            <p>Rules stated below are not Counter-Strike 2's, whatever the wording of the answer says.</p>
+            <button class="btn">Ask again, scoped to Counter-Strike 2 — ≈ $0.0004</button>
+          </div>
+
+          <div class="notice n-title">
+            <div class="eyebrow">Game-title rule governs</div>
+            <p>VALORANT Article 5.5.1 and EWC Global Rulebook 2026 Article 5.1.9 state different
+               rules on map selection. Under the precedence rule the game-title book governs.</p>
+            <div class="locs">
+              <button class="loc">VALORANT · Art. 5.5.1 · p.11</button>
+              <button class="loc">EWC Global Rulebook 2026 · Art. 5.1.9 · p.24</button>
+            </div>
+          </div>
+
+          <div class="answer">
+            <p>The higher-seeded team elects which side of the veto sequence to open, and the losing
+            side of the coin toss removes the first map <a class="cite c-t active" href="#">(VALORANT — Article 5.5.1, p.11)</a>.
+            The veto must be completed no later than fifteen minutes before the scheduled start time
+            <a class="cite c-t" href="#">(VALORANT — Article 5.5.1.1, p.11)</a>.</p>
+            <p>The Global Rulebook sets the tournament-wide default that map selection procedure is
+            fixed by the applicable game-title rulebook <a class="cite c-g" href="#">(EWC Global Rulebook 2026 — Article 5.1.9, p.24)</a>;
+            the VALORANT procedure governs here.</p>
+          </div>
+
+          <div class="disclose">
+            <div class="eyebrow">This answer shipped with a defect recorded by the post-check</div>
+            <ul><li>attempt 1: over-quoting: 34-word run matching VALORANT 5.5.1</li></ul>
+          </div>
+
+          <!-- context surface -->
+          <div class="ctx-head">
+            <span class="eyebrow">Retrieved context · 8 excerpts</span>
+            <div class="seg">
+              <button aria-pressed="true">As the model read them</button>
+              <button aria-pressed="false">By relevance</button>
+            </div>
+          </div>
+
+          <div class="card t open">
+            <div class="card-h">
+              <span class="badge b-t">T</span>
+              <span class="grow">
+                <span class="bk">VALORANT</span>
+                <span class="lc mono">Art. 5.5.1 · p.11</span>
+                <span class="tr">5 MATCH PROCEDURES › 5.5 Map Selection › 5.5.1 Veto Procedure</span>
+              </span>
+              <span class="rk mono">READ #1 · RANK 1 <span class="star">★</span></span>
+            </div>
+            <div class="card-b">
+              <span class="label">[VALORANT · Article 5.5.1 — Veto Procedure]</span>
+              The higher-seeded team shall elect whether to remove first or second in the veto
+              sequence. The veto shall be completed no later than fifteen (15) minutes before the
+              scheduled start time of the match. Where a team fails to…
+            </div>
+            <div class="card-f">
+              <span class="mono">v unstated · effective unstated · 1,129 chars · chunk 1 of 2</span>
+              <button class="open-btn">▸ OPEN PDF PAGE 11</button>
+            </div>
+          </div>
+
+          <div class="card g">
+            <div class="card-h">
+              <span class="badge b-g">G</span>
+              <span class="grow">
+                <span class="bk">EWC Global Rulebook 2026</span>
+                <span class="lc mono">Art. 5.1.9 · pp.24–25</span>
+                <span class="tr">5 COMPETITION › 5.1 Match Conduct › 5.1.9 Map and Stage Selection</span>
+              </span>
+              <span class="rk mono">READ #2 · RANK 4 <span class="star">★</span></span>
+            </div>
+            <div class="card-b">
+              <span class="label">[EWC Global Rulebook 2026 · Article 5.1.9 — Map and Stage Selection]</span>
+              Map, stage or arena selection shall follow the procedure set out in the applicable game
+              title rulebook. Where the game title rulebook is silent, Tournament Administration…
+            </div>
+            <div class="card-f">
+              <span class="mono">v1.0 · effective 2026-01-01 · 984 chars · chunk 1 of 1</span>
+              <button class="open-btn">▸ OPEN PDF PAGES 24–25</button>
+            </div>
+          </div>
+
+          <div class="card a">
+            <div class="card-h">
+              <span class="badge b-a">A</span>
+              <span class="grow">
+                <span class="bk">EWC Global Rulebook 2026 Amendment 2026-07-17</span>
+                <span class="lc mono">Art. 3.2.3 · p.1</span>
+                <span class="tr">Update to Art. 3.2.3 on Team Roster Integrity</span>
+              </span>
+              <span class="rk mono">READ #3 · RANK 7</span>
+            </div>
+            <div class="card-f">
+              <span class="mono">v2026-07-17 · effective 2026-07-17 · 2,697 chars · chunk 1 of 1</span>
+              <button class="open-btn">▸ OPEN NOTICE</button>
+            </div>
+          </div>
+
+          <div class="card t external">
+            <div class="card-h">
+              <span class="badge b-t">T</span>
+              <span class="grow">
+                <span class="bk">Apex Legends</span>
+                <span class="lc mono">Art. 2.1 · pp.1–2</span>
+                <span class="tr">2 ELIGIBILITY AND REGISTRATION › 2.1 Player Eligibility</span>
+              </span>
+              <span class="rk mono">READ #4 · RANK 6</span>
+            </div>
+            <div class="card-f">
+              <span class="tag">THIRD-PARTY HOST · algs.ea.com</span>
+              <button class="open-btn">▸ OPEN PDF PAGES 1–2</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- ══ TURN 2 — abstention, shown at full dignity ══ -->
+        <article class="turn">
+          <div class="qmeta mono">14 Aug 2026, 10:58 · gpt-4o-mini · $0.000301 · 3.4s</div>
+          <h2 class="question">What are the drone racing qualification rules?</h2>
+
+          <div class="scope">
+            <div class="eyebrow">Searched</div>
+            <div class="books">
+              <span class="book"><span class="badge b-g">G</span><span class="n">EWC Global Rulebook 2026</span><span class="c mono">8 excerpts</span></span>
+            </div>
+            <div class="routed mono">ROUTED AUTOMATICALLY · NO TITLE RULEBOOK MATCHED — Global and published amendments only</div>
+          </div>
+
+          <div class="panel" role="region" aria-labelledby="ab1">
+            <div class="eyebrow" id="ab1">No coverage in the retrieved text</div>
+            <div class="body">The retrieved rulebook text does not cover drone racing qualification.
+              Searched: the EWC Global Rulebook 2026 and published amendments (no title rulebook).</div>
+          </div>
+
+          <div class="ctx-head"><span class="eyebrow">Retrieved context · 8 excerpts</span>
+            <div class="seg"><button aria-pressed="true">As the model read them</button><button aria-pressed="false">By relevance</button></div>
+          </div>
+          <div class="card g">
+            <div class="card-h"><span class="badge b-g">G</span>
+              <span class="grow"><span class="bk">EWC Global Rulebook 2026</span>
+                <span class="lc mono">Art. 4.1.1 · p.19</span>
+                <span class="tr">4 QUALIFICATION › 4.1 Qualification Pathways</span></span>
+              <span class="rk mono">READ #1 · RANK 1 <span class="star">★</span></span></div>
+            <div class="card-f"><span class="mono">v1.0 · effective 2026-01-01 · 806 chars</span>
+              <button class="open-btn">▸ OPEN PDF PAGE 19</button></div>
+          </div>
+        </article>
+
+        <!-- ══ TURN 3 — withheld ══ -->
+        <article class="turn">
+          <div class="qmeta mono">14 Aug 2026, 11:04 · gpt-4o-mini · $0.000844 · 7.9s · one correction attempt</div>
+          <h2 class="question">Which article sets the forfeit window for a no-show?</h2>
+
+          <div class="scope">
+            <div class="eyebrow">Searched</div>
+            <div class="books">
+              <span class="book"><span class="badge b-t">T</span><span class="n">Counter-Strike 2</span><span class="c mono">5 excerpts</span></span>
+              <span class="book"><span class="badge b-g">G</span><span class="n">EWC Global Rulebook 2026</span><span class="c mono">3 excerpts</span></span>
+            </div>
+            <div class="routed mono">SCOPE SET MANUALLY: cs2 · router not called</div>
+          </div>
+
+          <div class="panel withheld" role="region" aria-labelledby="wh1">
+            <div class="eyebrow" id="wh1">Answer withheld — failed the citation check</div>
+            <div class="body">The drafted answer could not be reconciled with the retrieved excerpts,
+              so it has been withheld rather than shown.
+Searched: the Counter-Strike 2 rulebook and the EWC Global Rulebook 2026.
+Unreconciled: unsupported citation (Counter-Strike 2 — Article 5.1.7.3, p.25)</div>
+            <div class="gloss">Two drafts were produced. Both failed a mechanical check against the
+              retrieved text, so neither is shown. This is the system refusing to show you something
+              it could not verify. The excerpts below were retrieved and are unaffected.</div>
+            <div class="disclose" style="margin-top:16px">
+              <div class="eyebrow">What failed</div>
+              <ul>
+                <li>attempt 1: unsupported citation (Counter-Strike 2 — Article 5.1.7.3, p.25)</li>
+                <li>attempt 2: unsupported citation (Counter-Strike 2 — Article 4.8, p.25)</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- composer -->
+    <div class="composer">
+      <div class="wrap">
+        <textarea class="ta" placeholder="Ask about a rule. Answers cite the rulebook, article and PDF page they came from."></textarea>
+        <div class="crow">
+          <select class="sel">
+            <option>Auto — router decides</option>
+            <option>Counter-Strike 2</option>
+            <option>VALORANT</option>
+            <option disabled>Overwatch 2 — no PDF published</option>
+            <option>Global only</option>
+          </select>
+          <span class="pre mono">≈ 2 model calls · ≈ $0.0004 · scope decided by the router</span>
+          <button class="btn btn-2">Search only</button>
+          <button class="btn btn-1">Ask</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── SOURCE VIEWER DRAWER ──────────────────────────────────────────── -->
+  <aside class="viewer">
+    <div class="v-head">
+      <span>
+        <span class="bk">Honor of Kings and Arena of Valor</span>
+        <span class="lc mono">Art. 3.4.2 · physical p.11</span>
+      </span>
+      <button class="x" aria-label="Close">✕</button>
+    </div>
+
+    <div class="prov">
+      <div class="eyebrow">Physical PDF page 11 of 60 — the page this citation points to</div>
+      <p>This page's printed footer reads “- 5 -”.</p>
+      <p class="warn">⚠ This document's printed numbering restarts partway through; “- 5 -” also
+        appears on physical page 6. Citations use the physical page.</p>
+    </div>
+
+    <div class="v-body">
+      <div class="page">
+        <h4>3.4 Roster Registration</h4>
+        Each Participant shall register its roster with Tournament Administration no later than the
+        registration deadline published for the relevant Tournament. A roster shall consist of no
+        fewer than five (5) starting Players and no more than three (3) substitutes.
+        <h4>3.4.2 Substitution Windows</h4>
+        Substitutions may be made between Games of a Series, and shall be notified to Tournament
+        Administration before the start of the affected Game. A Participant that fails to field a
+        complete roster within the period set out in Article 5.2 shall be subject to the penalties
+        set out therein.
+        <h4>3.4.3 Emergency Substitutes</h4>
+        Where a registered Player is unable to compete for reasons beyond the Participant's control,
+        Tournament Administration may in its sole discretion approve an Emergency Substitute.
+        <span class="ph">- 5 -</span>
+      </div>
+    </div>
+
+    <div class="v-foot">
+      <span class="mono">indexed copy · sha256 ecb33c7e · downloaded 11 Aug 2026</span>
+      <a class="mono" href="#">Publisher copy ↗ — may have been re-uploaded; pages may differ</a>
+    </div>
+  </aside>
+</div>
+
+<!-- ── swatch appendix ─────────────────────────────────────────────────── -->
+<div class="appendix">
+  <h3 class="sec">Authority tiers — colour + glyph + border, never colour alone</h3>
+  <div class="sw">
+    <div><b><span class="badge b-g" style="display:inline-grid;vertical-align:-4px">G</span> global · authority 0</b><span>--auth-global · 3px solid · slate-blue</span></div>
+    <div><b><span class="badge b-t" style="display:inline-grid;vertical-align:-4px">T</span> title · authority 1</b><span>--auth-title · 3px double · ochre</span></div>
+    <div><b><span class="badge b-a" style="display:inline-grid;vertical-align:-4px">A</span> amendment · authority 2</b><span>--auth-amendment · solid + notch · vermilion</span></div>
+  </div>
+
+  <h3 class="sec">State language — structure, not hue</h3>
+  <div class="sw">
+    <div><b>Abstention</b><span>hairline top + bottom, no colour</span></div>
+    <div><b>Withheld</b><span>hatched left edge, --ink-3</span></div>
+    <div><b>Title mismatch</b><span>hatched top + bottom, --ink</span></div>
+    <div><b>External host</b><span>hatched border, --ink-3</span></div>
+    <div><b>Error (only)</b><span>--alert · transport / config only</span></div>
+  </div>
+
+  <h3 class="sec">Three voices</h3>
+  <div class="sw">
+    <div><b class="serif" style="font-size:15px">Literata — corpus voice</b><span>answers, rule text, excerpts</span></div>
+    <div><b>Archivo — system voice</b><span>labels, buttons, UI copy</span></div>
+    <div><b class="mono" style="font-size:13px">IBM Plex Mono — machine voice</b><span>locators, numbers, hashes</span></div>
+  </div>
+</div>
+
+</body>
+</html>

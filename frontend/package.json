@@ -1,0 +1,28 @@
+{
+  "name": "ewc-rulebook-rag-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Front-end for the EWC Rulebook RAG. Implements frontend/DESIGN.md. Display surface only: it never authors, rewrites or shortens a rule claim.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "2.11.0",
+    "pdfjs-dist": "5.5.207",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-redux": "9.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.0",
+    "@vitejs/plugin-react": "5.1.0",
+    "jsdom": "28.1.0",
+    "vite": "7.3.6",
+    "vitest": "3.2.7"
+  }
+}
