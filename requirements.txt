@@ -48,3 +48,14 @@ uvicorn==0.52.1
 python-dotenv==1.2.2                # loads OPENAI_API_KEY from .env
 pyyaml==6.0.3                       # eval/queries.yaml
 pydantic==2.13.4                    # structured output for the `route` node
+
+# --- Benchmark IR scoring (/benchmark only) ------------------------------------
+# Bindings over the real trec_eval C implementation, so ndcg_cut / map /
+# recip_rank / bpref / P / recall carry the semantics the IR literature means --
+# including the tie-handling and gain conventions a hand-rolled NDCG gets wrong
+# silently. Deterministic, free, makes no model call.
+# Install verified on Python 3.11.15 / darwin-arm64, 2026-08-18: it pulls scipy
+# transitively and does NOT move numpy (2.4.6 before and after) or disturb the
+# chromadb==1.5.9 pin. Imported only by benchmark/; neither the pipeline nor
+# eval/run.py depends on it, so a missing wheel cannot break the gate.
+pytrec_eval-terrier==0.5.10

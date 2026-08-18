@@ -1,0 +1,78 @@
+# benchmark/config.yaml — parameters for the measurement layer.
+#
+# Nothing here changes pipeline behaviour. The k values below are RECORDED, not
+# applied: they are read from graph.py at run time and written into summary.json
+# so a result can be read against the geometry that produced it. If a value here
+# disagrees with graph.py, benchmark/run.py reports the disagreement and uses
+# graph.py's — the pipeline is the source of truth, this file is documentation
+# that can go stale.
+
+version: 1
+
+# --- corpus pin ------------------------------------------------------------
+# First 8 hex of data/chunks.pkl's sha256 (server.py:343 corpus_fingerprint()).
+# A run ABORTS BEFORE SPENDING if the live corpus does not match. This is exactly
+# the failure that produced log 010's B-1: the corpus was rebuilt mid-verification
+# and every number measured after that point described a different index.
+corpus:
+  fingerprint: "49c0a952"
+  chunks_pkl_sha256: "49c0a952d9421605b2836a9e5ba5f97fcbf52adf4e5eb34c643915e67af21535"
+  chroma_vectors: 2382
+  documents: 2382
+  # Why this differs from log 009's e5819299: serialisation drift only, corpus
+  # content proven identical (log 010 B-1, eval/queries.yaml:75-95).
+
+# --- retrieval geometry (mirrors graph.py; verified at run time) -----------
+retrieval:
+  dense_k: 12                 # graph.DENSE_K
+  lexical_k: 12               # graph.LEXICAL_K
+  fused_k: 8                  # graph.FUSED_K   -- the pool size; also recall@8's ceiling
+  rrf_k: 60                   # graph.RRF_K
+  accountable_rank: 4         # graph.ACCOUNTABLE_RANK -- what `resolve` will consider
+  cutoffs: [4, 8]             # k values reported for recall
+
+# --- models ---------------------------------------------------------------
+models:
+  chat: gpt-4o-mini           # OPENAI_CHAT_MODEL default (graph.py:1492)
+  embedding: text-embedding-3-small
+  judge: gpt-4o               # Stage 4 only. Deliberately NOT gpt-4o-mini: the S4
+                              # doctrine rejects same-or-weaker-model judging.
+                              # Unused until calibration gates it.
+
+# --- run policy -----------------------------------------------------------
+runs:
+  # Retrieval is deterministic given a fixed index (BM25, RRF with a key
+  # tie-break, a stable authority sort, Chroma HNSW over a fixed collection).
+  # Only the router is nondeterministic on the free tier, so only router cases
+  # repeat. The determinism claim is VERIFIED by --determinism-probe, not assumed.
+  free_tier_default: 1
+  free_tier_router_cases: 3   # cases with `route: auto` in eval/queries.yaml (measured: 2)
+  gate_stability_runs: 10
+  determinism_probe_runs: 5
+  determinism_probe_case: conflict-vac-six-year
+
+# --- qrels ----------------------------------------------------------------
+qrels:
+  # Stage 1 uses only eval/queries.yaml's `must_include` entries: 30 labels,
+  # POSITIVE-ONLY and PARTIAL. Nothing claims they are complete.
+  source: must_include
+  pool_version: null          # Stage 2: qrels/pool_v1.jsonl, committed to git
+
+# --- thresholds -----------------------------------------------------------
+# DELIBERATELY EMPTY. Every threshold in .claude/agents/rag-benchmark-runner.md
+# (Recall@8 >= 0.75, Faithfulness >= 0.90, Citation >= 0.85, Leakage == 0,
+# Precedence >= 0.95, Abstention precision >= 0.90) is a guess made before any
+# measurement existed. A guessed threshold that the system happens to clear reads
+# as validation of the system; one it happens to miss reads as a regression.
+#
+# These are set at BASELINE C (Stage 2, after pool judging), each AT the measured
+# value and never above it, each recording the results directory it came from.
+# Until then this section stays null and nothing in this package compares a
+# number against anything.
+thresholds: null
+
+# --- budget ---------------------------------------------------------------
+budget:
+  max_usd: 0.25               # generation tier ceiling (Stage 3)
+  max_judge_usd: 0.20         # separate ceiling so a runaway judge cannot hide
+                              # inside a generation budget (Stage 4)

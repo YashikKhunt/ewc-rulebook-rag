@@ -1,0 +1,207 @@
+# benchmark/queries/overlay.yaml
+#
+# An OVERLAY on eval/queries.yaml, keyed by the same case ids. It adds ONLY what
+# the gate does not encode and the metrics need:
+#
+#   answerable         can this question be answered at all from the scope the
+#                      system is allowed to search? Drives abstention scoring.
+#                      The five xscope-leak-* cases are `false`: they name a
+#                      title the routed scope deliberately cannot see, so the
+#                      only correct outcome is a refusal that says so.
+#   expected_governs   global | title | amendment | none  — which authority level
+#                      decides the question. `none` covers agreement pairs,
+#                      cross-references (agreement by incorporation), number
+#                      collisions between unrelated articles, and unanswerables.
+#   governing_article  the article that actually decides it, as {game, article}
+#                      (or {game, article_prefix} where the label is a family).
+#                      `null` where nothing governs.
+#   category           which metric families this case feeds.
+#
+# It does NOT restate questions, games, buckets or assertions. eval/queries.yaml
+# stays byte-identical — benchmark/run.py verifies its sha256 before and after
+# every run. Two divergent query sets is how you end up benchmarking something
+# the gate does not test.
+#
+# `expected_governs` and `governing_article` are DECLARATIONS OF INTENT derived
+# from the `notes:` blocks in eval/queries.yaml and from logs/006 ruling 2. They
+# are not human relevance judgements; those are Stage 2's pool labels and live in
+# benchmark/qrels/. Nothing here is used as a relevance label.
+
+version: 1
+derived_from: eval/queries.yaml
+cases:
+
+  # --- conflict bucket -----------------------------------------------------
+  conflict-media-fines:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: dota2, article: "5.5"}
+    category: [retrieval, conflict, precedence, faithfulness]
+
+  conflict-publisher-bans:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: cs2, article: "4.8"}
+    category: [retrieval, conflict, precedence, faithfulness]
+
+  conflict-agreement-penalty-points:
+    answerable: true
+    expected_governs: none          # verbatim-identical rules; precedence is invented
+    governing_article: {game: dota2, article: "1.4.1.1"}
+    category: [retrieval, conflict, precedence]
+
+  conflict-express-global-primacy:
+    answerable: true
+    expected_governs: global        # global 3.2.3 expressly asserts primacy (#1's exception)
+    governing_article: {game: global, article: "3.2.3"}
+    category: [retrieval, conflict, precedence, faithfulness]
+
+  conflict-express-global-primacy-rephrased:
+    answerable: true
+    expected_governs: global
+    governing_article: {game: global, article: "3.2.3"}
+    category: [retrieval, conflict, precedence, faithfulness]
+
+  conflict-a16-number-collision:
+    answerable: true
+    expected_governs: none          # two unrelated articles sharing a number
+    governing_article: null
+    category: [retrieval, conflict, precedence]
+
+  conflict-vac-six-year:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: cs2, article: "4.8"}
+    category: [retrieval, conflict, precedence, faithfulness]
+
+  conflict-pubgm-crossref-agreement:
+    answerable: true
+    expected_governs: none          # cross-reference = agreement by incorporation
+    governing_article: {game: pubg-mobile, article: "13.6"}
+    category: [retrieval, conflict, precedence]
+
+  amendment-global-3-2-3:
+    answerable: true
+    expected_governs: amendment
+    governing_article: {game: global, article: "3.2.3", scope: amendment}
+    category: [retrieval, conflict, precedence, amendment, faithfulness]
+
+  # --- cross-scope bucket --------------------------------------------------
+  # The five leak probes name a title the routed scope cannot see. Not
+  # answerable, and the failure mode is PROSE misattribution (B-2), not a
+  # contaminated pool — the pool is clean by construction (scope_filter).
+  xscope-leak-codmw3-warzone:
+    answerable: false
+    expected_governs: none
+    governing_article: null
+    category: [retrieval, cross_scope, leakage, abstention]
+
+  xscope-leak-warzone-codmw3:
+    answerable: false
+    expected_governs: none
+    governing_article: null
+    category: [retrieval, cross_scope, leakage, abstention]
+
+  xscope-leak-mlbbw-mlbb:
+    answerable: false
+    expected_governs: none
+    governing_article: null
+    category: [retrieval, cross_scope, leakage, abstention]
+
+  xscope-leak-mlbb-mlbbw:
+    answerable: false
+    expected_governs: none
+    governing_article: null
+    category: [retrieval, cross_scope, leakage, abstention]
+
+  xscope-leak-valorant-cs2:
+    answerable: false
+    expected_governs: none
+    governing_article: null
+    category: [retrieval, cross_scope, leakage, abstention]
+
+  xscope-ow2-abstain:
+    answerable: false               # OW2 has no published PDF; known corpus hole
+    expected_governs: none
+    governing_article: null
+    category: [cross_scope, abstention, routing]
+
+  xscope-forfeit-grace-abstain:
+    answerable: false               # Global has no punctuality rule; it lives in title books
+    expected_governs: none
+    governing_article: null
+    category: [cross_scope, abstention, routing]
+
+  # --- normal bucket -------------------------------------------------------
+  normal-cs2-lateness-ladder:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: cs2, article: "2.8.2"}
+    category: [retrieval, citation, faithfulness]
+
+  normal-mlbb-alcohol-sponsor:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "9.1.4"}
+    category: [retrieval, citation]
+
+  normal-b1-cheating-attribution:
+    answerable: true
+    expected_governs: global        # the sanction is a Global rule, asked at cs2 scope
+    governing_article: {game: global, article: "5.1.7.3"}
+    category: [retrieval, citation, faithfulness]
+
+  normal-dota2-attributable-hedge:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: dota2, article: "1.4.2"}
+    category: [retrieval, citation, faithfulness]
+
+  normal-tok-dotted-prefix-children:
+    answerable: true
+    expected_governs: global
+    governing_article: {game: global, article_prefix: "5.1.19"}
+    category: [retrieval]
+
+  normal-tok-parent-still-findable:
+    answerable: true
+    expected_governs: global
+    governing_article: {game: global, article_prefix: "3.2"}
+    category: [retrieval]
+
+  normal-mlbb-gor-parent:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "6.2"}
+    category: [retrieval]
+
+  normal-mlbb-gor-child-6-2-1:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "6.2.1"}
+    category: [retrieval]
+
+  normal-mlbb-gor-child-6-2-2:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "6.2.2"}
+    category: [retrieval]
+
+  normal-mlbb-gor-child-6-2-3:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "6.2.3"}
+    category: [retrieval]
+
+  normal-mlbb-gor-child-6-2-4:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: mlbb, article: "6.2.4"}
+    category: [retrieval]
+
+  # --- pipeline bucket -----------------------------------------------------
+  pipeline-b5-sibling-padding:
+    answerable: true
+    expected_governs: title
+    governing_article: {game: rocket-league, article: "2.2.1"}
+    category: [retrieval, citation, faithfulness]

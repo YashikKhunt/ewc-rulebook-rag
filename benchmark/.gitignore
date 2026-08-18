@@ -1,0 +1,6 @@
+# Results are measurements of a moment, not source. Re-derive them by re-running.
+results/
+# Judge verdicts are cached model output, keyed on (question, answer sha256,
+# corpus_fingerprint, judge_model, rubric_version). Stage 4; empty until then.
+judge_cache/
+__pycache__/
