@@ -49,6 +49,9 @@ python-dotenv==1.2.2                # loads OPENAI_API_KEY from .env
 pyyaml==6.0.3                       # eval/queries.yaml
 pydantic==2.13.4                    # structured output for the `route` node
 
+# --- Testing --------------------------------------------------------------------
+pytest==9.1.1                       # `python -m pytest` runs tests/ (see pytest.ini)
+
 # --- Benchmark IR scoring (/benchmark only) ------------------------------------
 # Bindings over the real trec_eval C implementation, so ndcg_cut / map /
 # recip_rank / bpref / P / recall carry the semantics the IR literature means --
