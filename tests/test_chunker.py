@@ -238,10 +238,17 @@ def test_drop_table_of_contents_removes_run_followed_by_page_numbers():
     candidates = find_heading_candidates(lines)
     kept, dead = drop_table_of_contents(lines, candidates)
 
-    kept_articles = [c.article for c in kept]
-    # Only the second (real) occurrence of each article should survive.
-    assert kept_articles.count("1") == 1
+    # The TOC block occupies the first 12 lines (6 headings x 2 lines each);
+    # the real headings start at index 12.  Verify the *real* occurrence of
+    # each article survived and the TOC occurrence (the first one) did not,
+    # rather than merely counting how many "1"s remain.
+    kept_by_article = {c.article: c.index for c in kept}
+    for n in range(1, 7):
+        assert str(n) in kept_by_article
+        assert kept_by_article[str(n)] == 12 + (n - 1) * 2
     assert dead  # some lines were dropped as contents-listing noise
+    # The TOC's own lines (indices 0-11) must be among the dropped ones.
+    assert dead & set(range(12))
 
 
 def test_drop_table_of_contents_keeps_short_runs():
@@ -297,8 +304,11 @@ def test_enforce_sequence_restores_dotted_articles_out_of_order():
         Heading(3, 1, "2.5.4", "Fourth, printed out of order", ""),
     ]
     kept = enforce_sequence(headings, [])
-    kept_articles = {h.article for h in kept}
-    assert kept_articles == {"2.5.1", "2.5.9", "2.5.10", "2.5.4"}
+    kept_articles = [h.article for h in kept]
+    # Order matters: downstream segmentation consumes these headings as
+    # ordered boundaries, so the original document order must be preserved,
+    # not just the same set of articles.
+    assert kept_articles == ["2.5.1", "2.5.9", "2.5.10", "2.5.4"]
 
 
 def test_enforce_sequence_empty_input():
